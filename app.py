@@ -269,28 +269,34 @@ elif st.session_state.page == 'selesai_kandidat':
     total_teliti = round((p[1] + (5 - p[4]) + p[7]) / 3, 1)
     total_patuh = round(((5 - p[2]) + p[5] + (5 - p[8]) + p[9]) / 4, 1)
     
-    # Kategori Rekomendasi Fitment
+    # Kategori Rekomendasi Fitment Status
     if skor_logika >= 80 and skor_excel >= 75:
-        rekomendasi = "Top Talent (Sangat Direkomendasikan)"
+        tag_status = "REKOMENDASI KHUSUS"
+        desc_status = "Memiliki ketajaman berhitung kognitif tinggi serta pemahaman mendalam pada manipulasi database logistik. Sangat direkomendasikan untuk pos perencana strategis, rute armada optimal, atau kendali inventory depo utama."
     elif skor_logika >= 50 and skor_excel >= 50:
-        rekomendasi = "Dapat Dipertimbangkan"
+        tag_status = "DAPAT DIPERTIMBANGKAN"
+        desc_status = "Berada pada level kompetensi rata-rata pasar kerja. Mampu mengeksekusi tugas administratif terstruktur dengan supervisi normal."
     else:
-        rekomendasi = "Tidak Direkomendasikan"
+        tag_status = "TIDAK DIREKOMENDASIKAN"
+        desc_status = "Kinerja pemecahan masalah kuantitatif dan penguasaan Excel berada di bawah batas efisiensi standar operasional harian perusahaan. Berisiko tinggi melakukan human error."
 
-    # Simpan Hasil ke Database Internal HRD
+    # Simpan Hasil Lengkap ke Database Internal HRD
     record_hasil = {
         "Waktu Selesai": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "Nama Pelamar": nama,
         "Posisi Target": posisi,
         "Skor Logika": skor_logika,
+        "Benar Logika": benar_logika,
         "Skor Excel": skor_excel,
+        "Benar Excel": benar_excel,
         "Indeks Ketelitian": total_teliti,
         "Indeks Stres": total_stres,
         "Indeks Integritas": total_patuh,
-        "Rekomendasi": rekomendasi
+        "Tag Status": tag_status,
+        "Desc Status": desc_status
     }
     
-    # Mencegah Duplikasi Entri saat Rerender
+    # Mencegah Duplikasi Entri
     if not any(d['Nama Pelamar'] == nama and d['Waktu Selesai'] == record_hasil['Waktu Selesai'] for d in st.session_state.database_hrd):
         st.session_state.database_hrd.append(record_hasil)
     
@@ -306,17 +312,60 @@ elif st.session_state.page == 'selesai_kandidat':
 
 # --- 8. PANEL RAHASIA HRD ---
 elif st.session_state.page == 'hrd_panel':
-    st.subheader("Panel Rahasia HRD - Database Hasil Ujian Kandidat")
+    st.subheader("Panel Skoring HRD - Supply Chain Fitment Index")
     
     if len(st.session_state.database_hrd) == 0:
         st.warning("Belum ada data kandidat yang menyelesaikan ujian.")
     else:
-        df = pd.DataFrame(st.session_state.database_hrd)
-        st.dataframe(df, use_container_width=True)
+        # Ringkasan Tabel Utama
+        df_summary = pd.DataFrame([{
+            "Waktu": d["Waktu Selesai"],
+            "Nama Pelamar": d["Nama Pelamar"],
+            "Posisi Target": d["Posisi Target"],
+            "Skor Logika": f"{d['Skor Logika']} / 100",
+            "Skor Excel": f"{d['Skor Excel']} / 100",
+            "Status Fitment": d["Tag Status"]
+        } for d in st.session_state.database_hrd])
         
-        csv_data = df.to_csv(index=False).encode('utf-8')
+        st.write("### Rekapitulasi Data Kandidat")
+        st.dataframe(df_summary, use_container_width=True)
+        
+        st.write("---")
+        st.write("### COMPREHENSIVE ASSESSMENT REPORT")
+        st.caption("Pilih nama kandidat untuk bedah laporan detail komprehensif:")
+        
+        list_nama = [d["Nama Pelamar"] for d in st.session_state.database_hrd]
+        kandidat_terpilih = st.selectbox("Pilih Nama Kandidat:", list_nama)
+        
+        # Cari data kandidat terpilih
+        data_k = next(item for item in st.session_state.database_hrd if item["Nama Pelamar"] == kandidat_terpilih)
+        
+        # Tabel Metrik Detail
+        detail_df = pd.DataFrame([
+            {"Metrik Evaluasi": "Nama Lengkap Pelamar", "Nilai/Indeks": data_k['Nama Pelamar']},
+            {"Metrik Evaluasi": "Target Posisi Formasi", "Nilai/Indeks": data_k['Posisi Target']},
+            {"Metrik Evaluasi": "Skor Logika & Penalaran Distribusi", "Nilai/Indeks": f"{data_k['Skor Logika']} / 100 ({data_k['Benar Logika']} Benar)"},
+            {"Metrik Evaluasi": "Skor Advanced Formula & Olah Data Excel", "Nilai/Indeks": f"{data_k['Skor Excel']} / 100 ({data_k['Benar Excel']} Benar)"},
+            {"Metrik Evaluasi": "Indeks Ketelitian & Validasi Data (Skala 4)", "Nilai/Indeks": f"{data_k['Indeks Ketelitian']}"},
+            {"Metrik Evaluasi": "Indeks Ketahanan Tekanan Kerja (Skala 4)", "Nilai/Indeks": f"{data_k['Indeks Stres']}"},
+            {"Metrik Evaluasi": "Indeks Integritas & Kepatuhan Prosedur (Skala 4)", "Nilai/Indeks": f"{data_k['Indeks Integritas']}"},
+        ])
+        st.table(detail_df)
+        
+        st.markdown("#### Matriks Doktrin HRD & Rekomendasi Fitment:")
+        
+        # Tampilan List Persis Seperti Gambar
+        st.markdown(f"""
+        1. <span style='border: 1px solid #333; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>{data_k['Tag Status']}</span> {data_k['Desc Status']}
+        2. **Metrik Ketelitian:** {'Unggul. Menunjukkan tingkat presisi tinggi dalam memvalidasi data resi, manifes kargo, dan meminimalkan discrepancy stock opname.' if data_k['Indeks Ketelitian'] >= 3.0 else 'Kurang Aman. Cenderung ceroboh dan melompati detail angka krusial saat dihadapkan pada volume pekerjaan yang padat.'}
+        3. **Resiliensi Operasional:** {'Sangat Stabil. Mampu mengontrol emosi dengan baik serta tetap dapat mengambil keputusan logis walau dalam kondisi krisis depo/peak season.' if data_k['Indeks Stres'] >= 3.0 else 'Rentan Burnout. Berpotensi mengalami penurunan performa signifikan atau salah keputusan jika ditempatkan di lini depan operasional yang fluktuatif.'}
+        4. **Integritas & Kepatuhan Prosedur:** {'Tinggi. Memiliki komitmen absolut terhadap penegakan SOP keselamatan, pelaporan kecurangan, dan mitigasi fraud/kehilangan barang gudang.' if data_k['Indeks Integritas'] >= 3.0 else 'Berisiko Tinggi. Terindikasi memiliki tendensi memotong prosedur regulasi resmi demi kenyamanan pribadi atau efisiensi semu.'}
+        """, unsafe_allow_html=True)
+        
+        st.write("<br>", unsafe_allow_html=True)
+        csv_data = pd.DataFrame(st.session_state.database_hrd).to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="📥 Unduh Rekap Hasil Ujian (CSV/Excel)",
+            label="📥 Unduh Seluruh Data Rekap (CSV/Excel)",
             data=csv_data,
             file_name=f"Rekap_Hasil_Ujian_Logistik_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
             mime="text/csv",
