@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import streamlit.components.v1 as components
 
 # Konfigurasi Halaman Streamlit
 st.set_page_config(
@@ -10,7 +11,7 @@ st.set_page_config(
 )
 
 # Password Rahasia untuk Akses Panel HRD
-HRD_PASSWORD = "adminlogistik"  # Silakan ubah password sesuai kebutuhan Anda
+HRD_PASSWORD = "adminlogistik"
 
 # Data Bank Soal Lengkap
 BANK_LOGIKA = [
@@ -77,6 +78,49 @@ def go_to(page_name):
     st.session_state.page = page_name
     st.rerun()
 
+# Widget Timer HTML/JS 30 Menit
+def render_timer():
+    timer_html = """
+    <div id="timer_box" style="
+        position: fixed; 
+        top: 15px; 
+        right: 20px; 
+        background: #dc3545; 
+        color: white; 
+        padding: 10px 20px; 
+        font-size: 18px; 
+        font-weight: bold; 
+        border-radius: 8px; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
+        z-index: 9999;">
+        Sisa Waktu: <span id="time">30:00</span>
+    </div>
+
+    <script>
+    if (!window.timerStarted) {
+        window.timerStarted = true;
+        var duration = 30 * 60; // 30 Menit
+        var display = document.querySelector('#time');
+        var timer = duration, minutes, seconds;
+        var interval = setInterval(function () {
+            minutes = parseInt(timer / 60, 10);
+            seconds = parseInt(timer % 60, 10);
+
+            minutes = minutes < 10 ? "0" + minutes : minutes;
+            seconds = seconds < 10 ? "0" + seconds : seconds;
+
+            display.textContent = minutes + ":" + seconds;
+
+            if (--timer < 0) {
+                clearInterval(interval);
+                alert("Batas Waktu 30 Menit Habis! Silakan klik Simpan pada bagian akhir.");
+            }
+        }, 1000);
+    }
+    </script>
+    """
+    components.html(timer_html, height=60)
+
 # --- 1. MENU UTAMA ---
 if st.session_state.page == 'menu':
     st.markdown("<h2 style='text-align: center;'>SISTEM EVALUASI KOMPETENSI REKRUTMEN LOGISTIK</h2>", unsafe_allow_html=True)
@@ -90,6 +134,8 @@ if st.session_state.page == 'menu':
     with col2:
         if st.button("Panel Manajemen HRD (Admin)", use_container_width=True):
             go_to('login_hrd')
+            
+    st.markdown("<br><hr><p style='text-align: center; color: #adb5bd; font-size: 12px; font-style: italic;'>created by iqbalmantam</p>", unsafe_allow_html=True)
 
 # --- 2. LOGIN HRD ---
 elif st.session_state.page == 'login_hrd':
@@ -113,6 +159,7 @@ elif st.session_state.page == 'kandidat_reg':
     st.info("""
     **Ketentuan Mutlak Pelaksanaan Ujian:**
     - Total Komponen Soal: **35 Butir Instrumen Pemeringkat** (13 Logika Logistik, 10 Psikometrik Perilaku, 12 Formulasi Excel).
+    - Batas Waktu Pengerjaan: **30 Menit** (Timer dimulai otomatis saat lembar soal dibuka).
     - Kerjakan dengan teliti dan utamakan efisiensi waktu Anda.
     """)
     
@@ -133,6 +180,7 @@ elif st.session_state.page == 'kandidat_reg':
 
 # --- 4. SOAL LOGIKA ---
 elif st.session_state.page == 'soal_logika':
+    render_timer()
     st.subheader("Bagian 1: Logika Kognitif & Analitis Operasional (13 Soal)")
     
     with st.form("form_logika"):
@@ -155,6 +203,7 @@ elif st.session_state.page == 'soal_logika':
 
 # --- 5. SOAL KEPRIBADIAN ---
 elif st.session_state.page == 'soal_kepribadian':
+    render_timer()
     st.subheader("Bagian 2: Profil Kecocokan Sikap & Karakter Kerja Psikometrik (10 Soal)")
     st.caption("Tentukan sikap Anda: 1 = Sangat Tidak Setuju | 2 = Tidak Setuju | 3 = Setuju | 4 = Sangat Setuju")
     
@@ -178,6 +227,7 @@ elif st.session_state.page == 'soal_kepribadian':
 
 # --- 6. SOAL EXCEL ---
 elif st.session_state.page == 'soal_excel':
+    render_timer()
     st.subheader("Bagian 3: Advanced Formula & Pengolahan Data Manifes Excel (12 Soal)")
     
     with st.form("form_excel"):
