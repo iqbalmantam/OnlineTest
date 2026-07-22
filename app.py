@@ -260,66 +260,73 @@ elif st.session_state.page == 'soal_excel':
                 st.session_state.jawaban_excel = temp_answers
                 go_to('selesai_kandidat')
 
-# --- 7. FINALISASI & KIRIM OTOMATIS ANTAR PC ---
+# --- 7. FINALISASI & KIRIM OTOMATIS ANTAR PC (MENCEGAH DOUBLE) ---
 elif st.session_state.page == 'selesai_kandidat':
     st.subheader("Seluruh Tahapan Ujian Selesai")
     
-    nama = st.session_state.identitas['nama']
-    posisi = st.session_state.identitas['posisi']
-    
-    jwb_logika = st.session_state.jawaban_logika
-    benar_logika = sum(1 for i, item in enumerate(BANK_LOGIKA) if jwb_logika.get(i) == item['k'])
-    skor_logika = round((benar_logika / len(BANK_LOGIKA)) * 100, 1)
-    
-    jwb_excel = st.session_state.jawaban_excel
-    benar_excel = sum(1 for i, item in enumerate(BANK_EXCEL) if jwb_excel.get(i) == item['k'])
-    skor_excel = round((benar_excel / len(BANK_EXCEL)) * 100, 1)
-    
-    p = [st.session_state.jawaban_kepribadian[i]['skor'] for i in range(len(BANK_KEPRIBADIAN))]
-    stres_scores = [p[i] for i in range(len(p)) if BANK_KEPRIBADIAN[i]['id'] == 'STRES']
-    teliti_scores = [p[i] for i in range(len(p)) if BANK_KEPRIBADIAN[i]['id'] == 'TELITI']
-    patuh_scores = [p[i] for i in range(len(p)) if BANK_KEPRIBADIAN[i]['id'] == 'PATUH']
-    
-    total_stres = round(sum(stres_scores) / len(stres_scores), 1)
-    total_teliti = round(sum(teliti_scores) / len(teliti_scores), 1)
-    total_patuh = round(sum(patuh_scores) / len(patuh_scores), 1)
-    
-    if skor_logika >= 80 and skor_excel >= 75:
-        tag_status = "REKOMENDASI KHUSUS"
-        desc_status = "Memiliki ketajaman berhitung kognitif tinggi serta pemahaman mendalam pada manipulasi database logistik. Sangat direkomendasikan untuk pos perencana strategis, rute armada optimal, atau kendali inventory depo utama."
-    elif skor_logika >= 50 and skor_excel >= 50:
-        tag_status = "DAPAT DIPERTIMBANGKAN"
-        desc_status = "Berada pada level kompetensi rata-rata pasar kerja. Mampu mengeksekusi tugas administratif terstruktur dengan supervisi normal."
-    else:
-        tag_status = "TIDAK DIREKOMENDASIKAN"
-        desc_status = "Kinerja pemecahan masalah kuantitatif dan penguasaan Excel berada di bawah batas efisiensi standar operasional harian perusahaan. Berisiko tinggi melakukan human error."
+    # Kunci status agar pengiriman HANYA dieksekusi 1 kali
+    if 'submitted' not in st.session_state:
+        st.session_state.submitted = False
 
-    record_hasil = {
-        "Waktu Selesai": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "Nama Pelamar": nama,
-        "Posisi Target": posisi,
-        "Skor Logika": skor_logika,
-        "Benar Logika": benar_logika,
-        "Skor Excel": skor_excel,
-        "Benar Excel": benar_excel,
-        "Indeks Ketelitian": total_teliti,
-        "Indeks Stres": total_stres,
-        "Indeks Integritas": total_patuh,
-        "Tag Status": tag_status,
-        "Desc Status": desc_status
-    }
-    
-    # Simpan ke memori lokal browser
-    if not any(d['Nama Pelamar'] == nama and d['Waktu Selesai'] == record_hasil['Waktu Selesai'] for d in st.session_state.database_hrd):
-        st.session_state.database_hrd.append(record_hasil)
+    if not st.session_state.submitted:
+        nama = st.session_state.identitas.get('nama', 'Tanpa Nama')
+        posisi = st.session_state.identitas.get('posisi', 'Tanpa Posisi')
         
-        # Opsi Pengiriman ke Google Sheets Web App (Jika diisi)
-        if GOOGLE_SCRIPT_URL != "https://script.google.com/macros/s/AKfycbx.../exec":
+        jwb_logika = st.session_state.jawaban_logika
+        benar_logika = sum(1 for i, item in enumerate(BANK_LOGIKA) if jwb_logika.get(i) == item['k'])
+        skor_logika = round((benar_logika / len(BANK_LOGIKA)) * 100, 1)
+        
+        jwb_excel = st.session_state.jawaban_excel
+        benar_excel = sum(1 for i, item in enumerate(BANK_EXCEL) if jwb_excel.get(i) == item['k'])
+        skor_excel = round((benar_excel / len(BANK_EXCEL)) * 100, 1)
+        
+        p = [st.session_state.jawaban_kepribadian[i]['skor'] for i in range(len(BANK_KEPRIBADIAN))]
+        stres_scores = [p[i] for i in range(len(p)) if BANK_KEPRIBADIAN[i]['id'] == 'STRES']
+        teliti_scores = [p[i] for i in range(len(p)) if BANK_KEPRIBADIAN[i]['id'] == 'TELITI']
+        patuh_scores = [p[i] for i in range(len(p)) if BANK_KEPRIBADIAN[i]['id'] == 'PATUH']
+        
+        total_stres = round(sum(stres_scores) / len(stres_scores), 1) if stres_scores else 3.0
+        total_teliti = round(sum(teliti_scores) / len(teliti_scores), 1) if teliti_scores else 3.0
+        total_patuh = round(sum(patuh_scores) / len(patuh_scores), 1) if patuh_scores else 3.0
+        
+        if skor_logika >= 80 and skor_excel >= 75:
+            tag_status = "REKOMENDASI KHUSUS"
+            desc_status = "Memiliki ketajaman berhitung kognitif tinggi serta pemahaman mendalam pada manipulasi database logistik. Sangat direkomendasikan untuk pos perencana strategis, rute armada optimal, atau kendali inventory depo utama."
+        elif skor_logika >= 50 and skor_excel >= 50:
+            tag_status = "DAPAT DIPERTIMBANGKAN"
+            desc_status = "Berada pada level kompetensi rata-rata pasar kerja. Mampu mengeksekusi tugas administratif terstruktur dengan supervisi normal."
+        else:
+            tag_status = "TIDAK DIREKOMENDASIKAN"
+            desc_status = "Kinerja pemecahan masalah kuantitatif dan penguasaan Excel berada di bawah batas efisiensi standar operasional harian perusahaan. Berisiko tinggi melakukan human error."
+
+        record_hasil = {
+            "Waktu Selesai": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Nama Pelamar": nama,
+            "Posisi Target": posisi,
+            "Skor Logika": skor_logika,
+            "Benar Logika": benar_logika,
+            "Skor Excel": skor_excel,
+            "Benar Excel": benar_excel,
+            "Indeks Ketelitian": total_teliti,
+            "Indeks Stres": total_stres,
+            "Indeks Integritas": total_patuh,
+            "Tag Status": tag_status,
+            "Desc Status": desc_status
+        }
+        
+        # 1. Kirim ke Google Sheets Apps Script (Jika URL valid)
+        if GOOGLE_SCRIPT_URL and "script.google.com" in GOOGLE_SCRIPT_URL:
             try:
                 requests.post(GOOGLE_SCRIPT_URL, json=record_hasil, timeout=5)
             except:
                 pass
-    
+        
+        # 2. Simpan backup ke memori lokal
+        st.session_state.database_hrd.append(record_hasil)
+        
+        # Kunci status agar tidak terkirim dua kali saat halaman di-refresh
+        st.session_state.submitted = True
+
     st.success("Jawaban Anda telah berhasil terkirim dan tersimpan secara aman ke sistem HRD.")
     st.info("Terima kasih telah mengikuti tes seleksi. Hasil evaluasi akan diproses secara internal oleh Tim HRD.")
     
@@ -328,6 +335,7 @@ elif st.session_state.page == 'selesai_kandidat':
         st.session_state.jawaban_logika = {}
         st.session_state.jawaban_kepribadian = {}
         st.session_state.jawaban_excel = {}
+        st.session_state.submitted = False  # Reset flag saat keluar
         go_to('menu')
 
 # --- 8. PANEL RAHASIA HRD (TERHUBUNG MULTI-PC VIA GOOGLE SHEET) ---
