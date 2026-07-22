@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import streamlit.components.v1 as components
+import urllib.parse
+import requests
 
 # Konfigurasi Halaman Streamlit
 st.set_page_config(
@@ -13,7 +15,18 @@ st.set_page_config(
 # Password Rahasia untuk Akses Panel HRD
 HRD_PASSWORD = "adminlogistik"
 
-# Data Bank Soal Lengkap
+# MASUKKAN URL GOOGLE SHEETS ANDA DI SINI (Pastikan sudah di-share sebagai Editor)
+# Contoh URL Google Form / Sheet Web App atau koneksi CSV
+# Untuk metode paling sederhana & stabil tanpa setup GCP kompleks, kita gunakan integrasi Apps Script / Form / Public Sheet
+
+# --- PASTE LINK GOOGLE SHEET (CSV Export Link) DI SINI ---
+# Cara dapet link CSV: Di Google Sheet -> File -> Share -> Publish to Web -> Pilih Entire Document & CSV -> Copy Link
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHrkTeAJyKiUY3G9VD10wgE2GnBR0mfu8qbaWo2iEFasprbTncr8jbA5UtpXAQo8_yd3Psr-oUnchC/pub?output=csv" # Ganti dengan URL Publish CSV Anda
+
+# --- PASTE WEB APP URL GOOGLE APPS SCRIPT DI SINI (Untuk Menerima Data dari PC Kandidat) ---
+GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIXtqqcw23Laxslcs2UoA7fJOT-0K4jgxbM5WGwKJA3FhddM5UqVdvXEWrmfmLKFgrXA/exec" # Link Web App Google Apps Script
+
+# Data Bank Soal Lengkap (13 Logika, 20 Sikap Kerja, 12 Excel)
 BANK_LOGIKA = [
     {"s": "1. Kecepatan rata-rata truk kontainer X adalah 50 km/jam, berangkat pukul 07.00. Truk Y memiliki kecepatan rata-rata 70 km/jam dan berangkat melewati rute yang persis sama pukul 08.30. Pukul berapa Truk Y tepat menyusul Truk X?", "o": ["Pukul 11.45", "Pukul 12.15", "Pukul 12.30"], "k": "B"},
     {"s": "2. Suatu area Cross-docking memiliki sirkulasi harian barang masuk 4.500 koli. Jika efisiensi pemrosesan drop 15% akibat kerusakan conveyor belt, dan tumpukan backlog tersisa 800 koli dari hari kemarin, berapakah total beban barang yang berhasil diproses secara sistem depo hari ini?", "o": ["4.625 koli", "3.825 koli", "4.425 koli"], "k": "A"},
@@ -40,7 +53,17 @@ BANK_KEPRIBADIAN = [
     {"id": "STRES", "s": "7. Rencana distribusi alokasi truk yang mendadak berubah di tengah malam akibat kecelakaan lalu lintas atau penutupan jalan tol membuat saya sulit berkonsentrasi menentukan keputusan darurat."},
     {"id": "TELITI", "s": "8. Rekan kerja atau atasan seringkali memuji hasil pelaporan kerja saya karena tingkat presisi penempatan koordinat lokasi rak gudang yang sangat akurat."},
     {"id": "PATUH", "s": "9. Memodifikasi data kerusakan aset logistik di sistem agar performa operasional divisi terlihat tetap aman di mata manajemen perusahaan bagi saya adalah hal yang wajar dilakukan."},
-    {"id": "PATUH", "s": "10. Saya bersedia melaporkan indikasi fraud, pungutan liar, atau kecurangan pencatatan BBM yang dilakukan oleh rekan kerja satu divisi demi integritas keamanan depo."}
+    {"id": "PATUH", "s": "10. Saya bersedia melaporkan indikasi fraud, pungutan liar, atau kecurangan pencatatan BBM yang dilakukan oleh rekan kerja satu divisi demi integritas keamanan depo."},
+    {"id": "TELITI", "s": "11. Saya selalu melakukan konfirmasi ulang secara fisik terhadap jumlah barang di atas palet sebelum menandatangani berita acara serah terima barang."},
+    {"id": "STRES", "s": "12. Perubahan instruksi mendadak dari manajemen terkait prioritas pengiriman barang tidak mengganggu ketenangan dan fokus kerja saya."},
+    {"id": "PATUH", "s": "13. Saya menolak untuk meloloskan truk yang over-dimension dan over-load (ODOL) meskipun mendapat desakan dari pihak vendor angkutan."},
+    {"id": "TELITI", "s": "14. Bagi saya, kecocokan antara data fisik di gudang dengan catatan di sistem WMS (Warehouse Management System) adalah harga mati yang tidak boleh ada selisih."},
+    {"id": "STRES", "s": "15. Saat terjadi perselisihan atau adu argumen dengan tim muat (co-loader) di lapangan, saya tetap dapat mengendalikan emosi dengan tenang."},
+    {"id": "PATUH", "s": "16. Menggunakan Alat Pelindung Diri (APD) lengkap di area gudang/depo adalah kewajiban yang selalu saya patuhi tanpa perlu ditegur atasan."},
+    {"id": "TELITI", "s": "17. Saya terbiasa memeriksa ulang detail kode barang (SKU) yang mirip sebelum proses paking dan penempelan label resi."},
+    {"id": "STRES", "s": "18. Beban kerja yang menumpuk menjelang akhir jam operasional gudang tidak membuat saya tergesa-gesa hingga mengurangi kualitas kerja."},
+    {"id": "PATUH", "s": "19. Apabila saya menemukan celah sistem yang bisa dimanfaatkan untuk mempercepat pekerjaan tetapi melanggar prosedur resmi, saya tetap memilih mengikuti aturan."},
+    {"id": "TELITI", "s": "20. Saya mencatat setiap riwayat perawatan rutin armada logistik secara rapi dan terorganisasi agar tidak ada jadwal pemeriksaan yang terlewat."}
 ]
 
 BANK_EXCEL = [
@@ -58,7 +81,7 @@ BANK_EXCEL = [
     {"s": "12. Formula di sel H10 adalah =COUNTA(D2:D50). Jika di dalam rentang tersebut terdapat 5 sel kosong, 5 sel berisi teks eror, dan 40 sel berisi teks normal. Berapakah angka hasil keluaran rumus tersebut?", "o": ["40", "45", "50"], "k": "B"}
 ]
 
-# Inisialisasi Database Lokal / Session State
+# Inisialisasi Database Lokal Backup
 if 'database_hrd' not in st.session_state:
     st.session_state.database_hrd = []
 
@@ -78,42 +101,31 @@ def go_to(page_name):
     st.session_state.page = page_name
     st.rerun()
 
-# Widget Timer HTML/JS 30 Menit
+# Timer Widget
 def render_timer():
     timer_html = """
     <div id="timer_box" style="
-        position: fixed; 
-        top: 15px; 
-        right: 20px; 
-        background: #dc3545; 
-        color: white; 
-        padding: 10px 20px; 
-        font-size: 18px; 
-        font-weight: bold; 
-        border-radius: 8px; 
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
-        z-index: 9999;">
+        position: fixed; top: 15px; right: 20px; 
+        background: #dc3545; color: white; padding: 10px 20px; 
+        font-size: 18px; font-weight: bold; border-radius: 8px; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15); z-index: 9999;">
         Sisa Waktu: <span id="time">30:00</span>
     </div>
-
     <script>
     if (!window.timerStarted) {
         window.timerStarted = true;
-        var duration = 30 * 60; // 30 Menit
+        var duration = 30 * 60;
         var display = document.querySelector('#time');
         var timer = duration, minutes, seconds;
         var interval = setInterval(function () {
             minutes = parseInt(timer / 60, 10);
             seconds = parseInt(timer % 60, 10);
-
             minutes = minutes < 10 ? "0" + minutes : minutes;
             seconds = seconds < 10 ? "0" + seconds : seconds;
-
             display.textContent = minutes + ":" + seconds;
-
             if (--timer < 0) {
                 clearInterval(interval);
-                alert("Batas Waktu 30 Menit Habis! Silakan klik Simpan pada bagian akhir.");
+                alert("Batas Waktu 30 Menit Habis! Silakan simpan jawaban Anda.");
             }
         }, 1000);
     }
@@ -158,7 +170,7 @@ elif st.session_state.page == 'kandidat_reg':
     st.subheader("Registrasi Profil Pelamar")
     st.info("""
     **Ketentuan Mutlak Pelaksanaan Ujian:**
-    - Total Komponen Soal: **35 Butir Instrumen Pemeringkat** (13 Logika Logistik, 10 Psikometrik Perilaku, 12 Formulasi Excel).
+    - Total Komponen Soal: **45 Butir Instrumen Pemeringkat** (13 Logika Logistik, 20 Psikometrik Perilaku, 12 Formulasi Excel).
     - Batas Waktu Pengerjaan: **30 Menit** (Timer dimulai otomatis saat lembar soal dibuka).
     - Kerjakan dengan teliti dan utamakan efisiensi waktu Anda.
     """)
@@ -204,7 +216,7 @@ elif st.session_state.page == 'soal_logika':
 # --- 5. SOAL KEPRIBADIAN ---
 elif st.session_state.page == 'soal_kepribadian':
     render_timer()
-    st.subheader("Bagian 2: Profil Kecocokan Sikap & Karakter Kerja Psikometrik (10 Soal)")
+    st.subheader("Bagian 2: Profil Kecocokan Sikap & Karakter Kerja Psikometrik (20 Soal)")
     st.caption("Tentukan sikap Anda: 1 = Sangat Tidak Setuju | 2 = Tidak Setuju | 3 = Setuju | 4 = Sangat Setuju")
     
     with st.form("form_kepribadian"):
@@ -248,11 +260,10 @@ elif st.session_state.page == 'soal_excel':
                 st.session_state.jawaban_excel = temp_answers
                 go_to('selesai_kandidat')
 
-# --- 7. FINALISASI & PENYIMPANAN OTOMATIS RAHASIA ---
+# --- 7. FINALISASI & KIRIM OTOMATIS ANTAR PC ---
 elif st.session_state.page == 'selesai_kandidat':
     st.subheader("Seluruh Tahapan Ujian Selesai")
     
-    # Hitung Skor Otomatis di Backend
     nama = st.session_state.identitas['nama']
     posisi = st.session_state.identitas['posisi']
     
@@ -265,11 +276,14 @@ elif st.session_state.page == 'selesai_kandidat':
     skor_excel = round((benar_excel / len(BANK_EXCEL)) * 100, 1)
     
     p = [st.session_state.jawaban_kepribadian[i]['skor'] for i in range(len(BANK_KEPRIBADIAN))]
-    total_stres = round(((5 - p[0]) + p[3] + (5 - p[6])) / 3, 1)
-    total_teliti = round((p[1] + (5 - p[4]) + p[7]) / 3, 1)
-    total_patuh = round(((5 - p[2]) + p[5] + (5 - p[8]) + p[9]) / 4, 1)
+    stres_scores = [p[i] for i in range(len(p)) if BANK_KEPRIBADIAN[i]['id'] == 'STRES']
+    teliti_scores = [p[i] for i in range(len(p)) if BANK_KEPRIBADIAN[i]['id'] == 'TELITI']
+    patuh_scores = [p[i] for i in range(len(p)) if BANK_KEPRIBADIAN[i]['id'] == 'PATUH']
     
-    # Kategori Rekomendasi Fitment Status
+    total_stres = round(sum(stres_scores) / len(stres_scores), 1)
+    total_teliti = round(sum(teliti_scores) / len(teliti_scores), 1)
+    total_patuh = round(sum(patuh_scores) / len(patuh_scores), 1)
+    
     if skor_logika >= 80 and skor_excel >= 75:
         tag_status = "REKOMENDASI KHUSUS"
         desc_status = "Memiliki ketajaman berhitung kognitif tinggi serta pemahaman mendalam pada manipulasi database logistik. Sangat direkomendasikan untuk pos perencana strategis, rute armada optimal, atau kendali inventory depo utama."
@@ -280,7 +294,6 @@ elif st.session_state.page == 'selesai_kandidat':
         tag_status = "TIDAK DIREKOMENDASIKAN"
         desc_status = "Kinerja pemecahan masalah kuantitatif dan penguasaan Excel berada di bawah batas efisiensi standar operasional harian perusahaan. Berisiko tinggi melakukan human error."
 
-    # Simpan Hasil Lengkap ke Database Internal HRD
     record_hasil = {
         "Waktu Selesai": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "Nama Pelamar": nama,
@@ -296,9 +309,16 @@ elif st.session_state.page == 'selesai_kandidat':
         "Desc Status": desc_status
     }
     
-    # Mencegah Duplikasi Entri
+    # Simpan ke memori lokal browser
     if not any(d['Nama Pelamar'] == nama and d['Waktu Selesai'] == record_hasil['Waktu Selesai'] for d in st.session_state.database_hrd):
         st.session_state.database_hrd.append(record_hasil)
+        
+        # Opsi Pengiriman ke Google Sheets Web App (Jika diisi)
+        if GOOGLE_SCRIPT_URL != "https://script.google.com/macros/s/AKfycbx.../exec":
+            try:
+                requests.post(GOOGLE_SCRIPT_URL, json=record_hasil, timeout=5)
+            except:
+                pass
     
     st.success("Jawaban Anda telah berhasil terkirim dan tersimpan secara aman ke sistem HRD.")
     st.info("Terima kasih telah mengikuti tes seleksi. Hasil evaluasi akan diproses secara internal oleh Tim HRD.")
@@ -310,60 +330,67 @@ elif st.session_state.page == 'selesai_kandidat':
         st.session_state.jawaban_excel = {}
         go_to('menu')
 
-# --- 8. PANEL RAHASIA HRD ---
+# --- 8. PANEL RAHASIA HRD (TERHUBUNG MULTI-PC VIA GOOGLE SHEET) ---
 elif st.session_state.page == 'hrd_panel':
     st.subheader("Panel Skoring HRD - Supply Chain Fitment Index")
     
-    if len(st.session_state.database_hrd) == 0:
-        st.warning("Belum ada data kandidat yang menyelesaikan ujian.")
+    # Mencoba membaca data terpusat dari Google Sheet (CSV)
+    data_terpusat = []
+    if SHEET_CSV_URL != "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ.../pub?output=csv":
+        try:
+            df_gsheet = pd.read_csv(SHEET_CSV_URL)
+            data_terpusat = df_gsheet.to_dict('records')
+        except:
+            data_terpusat = st.session_state.database_hrd
     else:
-        # Ringkasan Tabel Utama
+        data_terpusat = st.session_state.database_hrd
+    
+    if len(data_terpusat) == 0:
+        st.warning("Belum ada data kandidat yang menyelesaikan ujian dari PC mana pun.")
+    else:
         df_summary = pd.DataFrame([{
-            "Waktu": d["Waktu Selesai"],
-            "Nama Pelamar": d["Nama Pelamar"],
-            "Posisi Target": d["Posisi Target"],
-            "Skor Logika": f"{d['Skor Logika']} / 100",
-            "Skor Excel": f"{d['Skor Excel']} / 100",
-            "Status Fitment": d["Tag Status"]
-        } for d in st.session_state.database_hrd])
+            "Waktu": d.get("Waktu Selesai", "-"),
+            "Nama Pelamar": d.get("Nama Pelamar", "-"),
+            "Posisi Target": d.get("Posisi Target", "-"),
+            "Skor Logika": f"{d.get('Skor Logika', 0)} / 100",
+            "Skor Excel": f"{d.get('Skor Excel', 0)} / 100",
+            "Status Fitment": d.get("Tag Status", "-")
+        } for d in data_terpusat])
         
-        st.write("### Rekapitulasi Data Kandidat")
+        st.write("### Rekapitulasi Data Seluruh Kandidat (Real-time)")
         st.dataframe(df_summary, use_container_width=True)
         
         st.write("---")
         st.write("### COMPREHENSIVE ASSESSMENT REPORT")
         st.caption("Pilih nama kandidat untuk bedah laporan detail komprehensif:")
         
-        list_nama = [d["Nama Pelamar"] for d in st.session_state.database_hrd]
+        list_nama = [d.get("Nama Pelamar", "Kandidat") for d in data_terpusat]
         kandidat_terpilih = st.selectbox("Pilih Nama Kandidat:", list_nama)
         
-        # Cari data kandidat terpilih
-        data_k = next(item for item in st.session_state.database_hrd if item["Nama Pelamar"] == kandidat_terpilih)
+        data_k = next(item for item in data_terpusat if item.get("Nama Pelamar") == kandidat_terpilih)
         
-        # Tabel Metrik Detail
         detail_df = pd.DataFrame([
-            {"Metrik Evaluasi": "Nama Lengkap Pelamar", "Nilai/Indeks": data_k['Nama Pelamar']},
-            {"Metrik Evaluasi": "Target Posisi Formasi", "Nilai/Indeks": data_k['Posisi Target']},
-            {"Metrik Evaluasi": "Skor Logika & Penalaran Distribusi", "Nilai/Indeks": f"{data_k['Skor Logika']} / 100 ({data_k['Benar Logika']} Benar)"},
-            {"Metrik Evaluasi": "Skor Advanced Formula & Olah Data Excel", "Nilai/Indeks": f"{data_k['Skor Excel']} / 100 ({data_k['Benar Excel']} Benar)"},
-            {"Metrik Evaluasi": "Indeks Ketelitian & Validasi Data (Skala 4)", "Nilai/Indeks": f"{data_k['Indeks Ketelitian']}"},
-            {"Metrik Evaluasi": "Indeks Ketahanan Tekanan Kerja (Skala 4)", "Nilai/Indeks": f"{data_k['Indeks Stres']}"},
-            {"Metrik Evaluasi": "Indeks Integritas & Kepatuhan Prosedur (Skala 4)", "Nilai/Indeks": f"{data_k['Indeks Integritas']}"},
+            {"Metrik Evaluasi": "Nama Lengkap Pelamar", "Nilai/Indeks": data_k.get('Nama Pelamar')},
+            {"Metrik Evaluasi": "Target Posisi Formasi", "Nilai/Indeks": data_k.get('Posisi Target')},
+            {"Metrik Evaluasi": "Skor Logika & Penalaran Distribusi", "Nilai/Indeks": f"{data_k.get('Skor Logika')} / 100 ({data_k.get('Benar Logika')} Benar)"},
+            {"Metrik Evaluasi": "Skor Advanced Formula & Olah Data Excel", "Nilai/Indeks": f"{data_k.get('Skor Excel')} / 100 ({data_k.get('Benar Excel')} Benar)"},
+            {"Metrik Evaluasi": "Indeks Ketelitian & Validasi Data (Skala 4)", "Nilai/Indeks": f"{data_k.get('Indeks Ketelitian')}"},
+            {"Metrik Evaluasi": "Indeks Ketahanan Tekanan Kerja (Skala 4)", "Nilai/Indeks": f"{data_k.get('Indeks Stres')}"},
+            {"Metrik Evaluasi": "Indeks Integritas & Kepatuhan Prosedur (Skala 4)", "Nilai/Indeks": f"{data_k.get('Indeks Integritas')}"},
         ])
         st.table(detail_df)
         
         st.markdown("#### Matriks Doktrin HRD & Rekomendasi Fitment:")
         
-        # Tampilan List Persis Seperti Gambar
         st.markdown(f"""
-        1. <span style='border: 1px solid #333; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>{data_k['Tag Status']}</span> {data_k['Desc Status']}
-        2. **Metrik Ketelitian:** {'Unggul. Menunjukkan tingkat presisi tinggi dalam memvalidasi data resi, manifes kargo, dan meminimalkan discrepancy stock opname.' if data_k['Indeks Ketelitian'] >= 3.0 else 'Kurang Aman. Cenderung ceroboh dan melompati detail angka krusial saat dihadapkan pada volume pekerjaan yang padat.'}
-        3. **Resiliensi Operasional:** {'Sangat Stabil. Mampu mengontrol emosi dengan baik serta tetap dapat mengambil keputusan logis walau dalam kondisi krisis depo/peak season.' if data_k['Indeks Stres'] >= 3.0 else 'Rentan Burnout. Berpotensi mengalami penurunan performa signifikan atau salah keputusan jika ditempatkan di lini depan operasional yang fluktuatif.'}
-        4. **Integritas & Kepatuhan Prosedur:** {'Tinggi. Memiliki komitmen absolut terhadap penegakan SOP keselamatan, pelaporan kecurangan, dan mitigasi fraud/kehilangan barang gudang.' if data_k['Indeks Integritas'] >= 3.0 else 'Berisiko Tinggi. Terindikasi memiliki tendensi memotong prosedur regulasi resmi demi kenyamanan pribadi atau efisiensi semu.'}
+        1. <span style='border: 1px solid #333; padding: 2px 6px; border-radius: 4px; font-weight: bold;'>{data_k.get('Tag Status')}</span> {data_k.get('Desc Status')}
+        2. **Metrik Ketelitian:** {'Unggul. Menunjukkan tingkat presisi tinggi dalam memvalidasi data resi, manifes kargo, dan meminimalkan discrepancy stock opname.' if float(data_k.get('Indeks Ketelitian', 0)) >= 3.0 else 'Kurang Aman. Cenderung ceroboh dan melompati detail angka krusial saat dihadapkan pada volume pekerjaan yang padat.'}
+        3. **Resiliensi Operasional:** {'Sangat Stabil. Mampu mengontrol emosi dengan baik serta tetap dapat mengambil keputusan logis walau dalam kondisi krisis depo/peak season.' if float(data_k.get('Indeks Stres', 0)) >= 3.0 else 'Rentan Burnout. Berpotensi mengalami penurunan performa signifikan atau salah keputusan jika ditempatkan di lini depan operasional yang fluktuatif.'}
+        4. **Integritas & Kepatuhan Prosedur:** {'Tinggi. Memiliki komitmen absolut terhadap penegakan SOP keselamatan, pelaporan kecurangan, dan mitigasi fraud/kehilangan barang gudang.' if float(data_k.get('Indeks Integritas', 0)) >= 3.0 else 'Berisiko Tinggi. Terindikasi memiliki tendensi memotong prosedur regulasi resmi demi kenyamanan pribadi atau efisiensi semu.'}
         """, unsafe_allow_html=True)
         
         st.write("<br>", unsafe_allow_html=True)
-        csv_data = pd.DataFrame(st.session_state.database_hrd).to_csv(index=False).encode('utf-8')
+        csv_data = pd.DataFrame(data_terpusat).to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Unduh Seluruh Data Rekap (CSV/Excel)",
             data=csv_data,
