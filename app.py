@@ -25,75 +25,85 @@ GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIXtqqcw23Laxslcs2
 # FUNGSI ANTI-KECURANGAN (TAB SWITCH & DISABLE COPY-PASTE)
 # ========================================================
 def inject_anti_cheat_script():
-    anti_cheat_html = """
+    # 1. CSS Injection untuk mematikan seleksi teks di seluruh halaman Streamlit
+    st.markdown(
+        """
+        <style>
+        /* Matikan seleksi teks di seluruh elemen Streamlit */
+        html, body, .stApp, .stApp * {
+            -webkit-user-select: none !important;
+            -moz-user-select: none !important;
+            -ms-user-select: none !important;
+            user-select: none !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # 2. JavaScript Injection melalui iframe runner untuk memblokir event di window utama
+    anti_cheat_js = """
     <script>
-      (function() {
-        const parentDoc = window.parent.document;
-        const parentWin = window.parent;
+    (function() {
+        try {
+            var mainDoc = window.parent.document;
+            var mainWin = window.parent;
 
-        // 1. INJECT STYLESHEET LANGSUNG KE PARENT DOCUMENT (MENCEGAH HIGHLIGHT TEKS SOAL)
-        if (!parentDoc.getElementById('anti-cheat-styles')) {
-          const styleEl = parentDoc.createElement('style');
-          styleEl.id = 'anti-cheat-styles';
-          styleEl.innerHTML = `
-            body, .stApp, p, span, div, label {
-              -webkit-user-select: none !important;
-              -moz-user-select: none !important;
-              -ms-user-select: none !important;
-              user-select: none !important;
+            // Mencegah pemicuan ganda saat re-render
+            if (!mainWin.__antiCheatActive) {
+                mainWin.__antiCheatActive = true;
+                mainWin.violationCount = 0;
+                var maxViolations = 3;
+
+                // Disable Right Click
+                mainDoc.addEventListener('contextmenu', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, true);
+
+                // Disable Copy, Cut, Paste, Drag
+                ['copy', 'cut', 'paste', 'dragstart'].forEach(function(evt) {
+                    mainDoc.addEventListener(evt, function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }, true);
+                });
+
+                // Disable Keyboard Shortcuts (Ctrl+C, Ctrl+V, F12, dll)
+                mainDoc.addEventListener('keydown', function(e) {
+                    var isCtrl = e.ctrlKey || e.metaKey;
+                    var k = e.key.toLowerCase();
+                    if (
+                        (isCtrl && ['c', 'v', 'x', 'a', 'u', 's', 'p'].indexOf(k) !== -1) ||
+                        e.key === 'F12' ||
+                        (isCtrl && e.shiftKey && ['i', 'j', 'c'].indexOf(k) !== -1)
+                    ) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                }, true);
+
+                // Tab Switch / Visibility Change Detector
+                mainDoc.addEventListener('visibilitychange', function() {
+                    if (mainDoc.hidden) {
+                        mainWin.violationCount++;
+                        if (mainWin.violationCount >= maxViolations) {
+                            alert('PERINGATAN KECURANGAN!\nAnda telah keluar dari halaman tes sebanyak ' + mainWin.violationCount + ' kali. Akses tes dihentikan/di-refresh.');
+                            mainWin.location.reload();
+                        } else {
+                            var tersisa = maxViolations - mainWin.violationCount;
+                            alert('PERINGATAN KECURANGAN!\nAnda terdeteksi meninggalkan halaman tes.\n\nPelanggaran: ' + mainWin.violationCount + '/' + maxViolations + '.\nTersisa ' + tersisa + ' kali kesempatan lagi!');
+                        }
+                    }
+                }, true);
             }
-          `;
-          parentDoc.head.appendChild(styleEl);
+        } catch(e) {
+            console.log('Anti-cheat script initialization error:', e);
         }
-
-        // 2. DISABLE CLICK KANAN & COPY-PASTE DI INDUK WINDOW
-        if (!parentWin.__antiCheatEventsBound) {
-          parentWin.__antiCheatEventsBound = true;
-
-          ['contextmenu', 'copy', 'cut', 'paste', 'dragstart'].forEach(evt => {
-            parentDoc.addEventListener(evt, e => {
-              e.preventDefault();
-              e.stopPropagation();
-              return false;
-            }, true);
-          });
-
-          // DISABLE SHORTCUT KEYBOARD (Ctrl+C, Ctrl+V, F12, dll)
-          parentDoc.addEventListener('keydown', e => {
-            const isCtrl = e.ctrlKey || e.metaKey;
-            const key = e.key.toLowerCase();
-            if (
-              (isCtrl && ['c', 'v', 'x', 'a', 'u', 's', 'p'].includes(key)) ||
-              e.key === 'F12' ||
-              (isCtrl && e.shiftKey && ['i', 'j', 'c'].includes(key))
-            ) {
-              e.preventDefault();
-              e.stopPropagation();
-              return false;
-            }
-          }, true);
-
-          // 3. TAB SWITCH DETECTOR
-          parentWin.violationCount = 0;
-          const maxViolations = 3;
-
-          parentDoc.addEventListener('visibilitychange', function() {
-            if (parentDoc.hidden) {
-              parentWin.violationCount++;
-              if (parentWin.violationCount >= maxViolations) {
-                alert('PERINGATAN KECURANGAN!\nAnda telah keluar dari halaman tes sebanyak ' + parentWin.violationCount + ' kali. Tes dihentikan.');
-                parentWin.location.reload();
-              } else {
-                const tersisa = maxViolations - parentWin.violationCount;
-                alert('PERINGATAN KECURANGAN!\nAnda terdeteksi meninggalkan halaman tes.\n\nPelanggaran: ' + parentWin.violationCount + '/' + maxViolations + '.\nTersisa ' + tersisa + ' kali kesempatan lagi!');
-              }
-            }
-          }, true);
-        }
-      })();
+    })();
     </script>
     """
-    components.html(anti_cheat_html, height=0, width=0)
+    components.html(anti_cheat_js, height=0, width=0)
 
 # Data Bank Soal Lengkap (13 Logika, 20 Sikap Kerja, 12 Excel)
 BANK_LOGIKA = [
