@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import streamlit.components.v1 as components
-import urllib.parse
 import requests
 
 # Konfigurasi Halaman Streamlit
@@ -29,7 +28,7 @@ def inject_anti_cheat_script():
     st.markdown(
         """
         <style>
-        /* Sembunyikan Header Streamlit & Logo GitHub */
+        /* Sembunyikan Header Streamlit, Logo GitHub, & Footer */
         #MainMenu {visibility: hidden;}
         header {visibility: hidden;}
         footer {visibility: hidden;}
@@ -318,18 +317,21 @@ elif st.session_state.page == 'selesai_kandidat':
         nama = st.session_state.identitas.get('nama', 'Tanpa Nama')
         posisi = st.session_state.identitas.get('posisi', 'Tanpa Posisi')
         
+        # Hitung Nilai Logika
         jwb_logika = st.session_state.jawaban_logika
         benar_logika = sum(1 for i, item in enumerate(BANK_LOGIKA) if jwb_logika.get(i) == item['k'])
         skor_logika = round((benar_logika / len(BANK_LOGIKA)) * 100, 1)
         
+        # Hitung Nilai Excel
         jwb_excel = st.session_state.jawaban_excel
         benar_excel = sum(1 for i, item in enumerate(BANK_EXCEL) if jwb_excel.get(i) == item['k'])
         skor_excel = round((benar_excel / len(BANK_EXCEL)) * 100, 1)
         
-        p = [st.session_state.jawaban_kepribadian[i]['skor'] for i in range(len(BANK_KEPRIBADIAN))]
-        stres_scores = [p[i] for i in range(len(p)) if BANK_KEPRIBADIAN[i]['id'] == 'STRES']
-        teliti_scores = [p[i] for i in range(len(p)) if BANK_KEPRIBADIAN[i]['id'] == 'TELITI']
-        patuh_scores = [p[i] for i in range(len(p)) if BANK_KEPRIBADIAN[i]['id'] == 'PATUH']
+        # Hitung Nilai Kepribadian (Aman dari KeyError)
+        jwb_kep = st.session_state.jawaban_kepribadian
+        stres_scores = [v['skor'] for v in jwb_kep.values() if v.get('id') == 'STRES']
+        teliti_scores = [v['skor'] for v in jwb_kep.values() if v.get('id') == 'TELITI']
+        patuh_scores = [v['skor'] for v in jwb_kep.values() if v.get('id') == 'PATUH']
         
         total_stres = round(sum(stres_scores) / len(stres_scores), 1) if stres_scores else 3.0
         total_teliti = round(sum(teliti_scores) / len(teliti_scores), 1) if teliti_scores else 3.0
@@ -452,4 +454,3 @@ elif st.session_state.page == 'hrd_panel':
 
     if st.button("Keluar dari Panel HRD", use_container_width=True):
         go_to('menu')
-
