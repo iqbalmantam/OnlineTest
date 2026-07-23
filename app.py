@@ -25,7 +25,7 @@ GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIXtqqcw23Laxslcs2
 # FUNGSI ANTI-KECURANGAN (TAB SWITCH & DISABLE COPY-PASTE)
 # ========================================================
 def inject_anti_cheat_script():
-    # 1. CSS Injection untuk mematikan seleksi teks di seluruh halaman Streamlit
+    # 1. CSS Injection untuk mematikan seleksi teks pada halaman Streamlit
     st.markdown(
         """
         <style>
@@ -40,76 +40,60 @@ def inject_anti_cheat_script():
         unsafe_allow_html=True
     )
 
-    # 2. JavaScript Injection khusus Top Window Event Listener
+    # 2. JavaScript Anti-Cheat (Tanpa memanggil window.top / window.parent)
     anti_cheat_js = """
     <script>
     (function() {
-        try {
-            // Targetkan Window paling luar (Top Window Browser)
-            var topWin = window.top || window.parent || window;
-            var topDoc = topWin.document;
+        var maxViolations = 3;
 
-            // Mencegah duplicate binding saat Streamlit re-render
-            if (!topWin.__antiCheatActive) {
-                topWin.__antiCheatActive = true;
-                topWin.violationCount = 0;
-                var maxViolations = 3;
-
-                // Disable Right Click
-                topDoc.addEventListener('contextmenu', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }, true);
-
-                // Disable Copy, Cut, Paste, Drag
-                ['copy', 'cut', 'paste', 'dragstart'].forEach(function(evt) {
-                    topDoc.addEventListener(evt, function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }, true);
-                });
-
-                // Disable Keyboard Shortcuts
-                topDoc.addEventListener('keydown', function(e) {
-                    var isCtrl = e.ctrlKey || e.metaKey;
-                    var k = e.key.toLowerCase();
-                    if (
-                        (isCtrl && ['c', 'v', 'x', 'a', 'u', 's', 'p'].indexOf(k) !== -1) ||
-                        e.key === 'F12' ||
-                        (isCtrl && e.shiftKey && ['i', 'j', 'c'].indexOf(k) !== -1)
-                    ) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                    }
-                }, true);
-
-                // Fungsi Peringatan Kecurangan
-                function triggerWarning() {
-                    topWin.violationCount++;
-                    if (topWin.violationCount >= maxViolations) {
-                        alert('PERINGATAN KECURANGAN!\nAnda telah keluar/berpindah dari halaman tes sebanyak ' + topWin.violationCount + ' kali. Akses tes dihentikan.');
-                        topWin.location.reload();
-                    } else {
-                        var tersisa = maxViolations - topWin.violationCount;
-                        alert('PERINGATAN KECURANGAN!\nAnda terdeteksi meninggalkan halaman tes (pindah tab / minimize).\n\nPelanggaran: ' + topWin.violationCount + '/' + maxViolations + '.\nTersisa ' + tersisa + ' kali kesempatan lagi!');
-                    }
-                }
-
-                // Deteksi 1: Visibility Change pada Top Document
-                topDoc.addEventListener('visibilitychange', function() {
-                    if (topDoc.hidden) {
-                        triggerWarning();
-                    }
-                }, true);
-
-                // Deteksi 2: Window Blur (saat klik/fokus ke aplikasi/jendela lain)
-                topWin.addEventListener('blur', function() {
-                    triggerWarning();
-                }, true);
-            }
-        } catch(e) {
-            console.log('Anti-cheat script error:', e);
+        // Ambil hitungan pelanggaran dari sessionStorage (persist meski Streamlit rerun)
+        function getViolations() {
+            return parseInt(sessionStorage.getItem('exam_violations') || '0', 10);
         }
+
+        function incrementViolations() {
+            var current = getViolations() + 1;
+            sessionStorage.setItem('exam_violations', current.toString());
+            return current;
+        }
+
+        function triggerWarning() {
+            var count = incrementViolations();
+            if (count >= maxViolations) {
+                alert('PERINGATAN KECURANGAN!\nAnda telah keluar/berpindah dari halaman tes sebanyak ' + count + ' kali. Tes Anda dibatalkan!');
+                sessionStorage.removeItem('exam_violations');
+                window.location.reload();
+            } else {
+                var tersisa = maxViolations - count;
+                alert('PERINGATAN KECURANGAN!\nAnda terdeteksi meninggalkan halaman tes (pindah tab / minimize).\n\nPelanggaran: ' + count + '/' + maxViolations + '.\nTersisa ' + tersisa + ' kali kesempatan lagi!');
+            }
+        }
+
+        // --- 1. DISABLE COPY, PASTE, & RIGHT CLICK ---
+        document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+        ['copy', 'cut', 'paste', 'dragstart'].forEach(function(evt) {
+            document.addEventListener(evt, function(e) { e.preventDefault(); });
+        });
+
+        document.addEventListener('keydown', function(e) {
+            var isCtrl = e.ctrlKey || e.metaKey;
+            var k = e.key.toLowerCase();
+            if (
+                (isCtrl && ['c', 'v', 'x', 'a', 'u', 's', 'p'].indexOf(k) !== -1) ||
+                e.key === 'F12'
+            ) {
+                e.preventDefault();
+            }
+        });
+
+        # --- 2. DETEKSI PINDAH TAB (VISIBILITY CHANGE) ---
+        // Browser meneruskan event ini ke seluruh iframe secara otomatis
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                triggerWarning();
+            }
+        });
+
     })();
     </script>
     """
