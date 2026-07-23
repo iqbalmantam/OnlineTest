@@ -234,7 +234,6 @@ elif st.session_state.page == 'kandidat_reg':
     **Ketentuan Mutlak Pelaksanaan Ujian:**
     - Total Komponen Soal: **45 Butir Instrumen Pemeringkat** (13 Logika Logistik, 20 Psikometrik Perilaku, 12 Formulasi Excel).
     - Batas Waktu Pengerjaan: **30 Menit** (Timer dimulai otomatis saat lembar soal dibuka).
-    - **Sistem Keamanan:** Dilarang menyalin teks (Copy-Paste) dan dilarang menggunakan fitur klik kanan selama tes.
     """)
     
     nama = st.text_input("Nama Lengkap Pelamar:", placeholder="Masukkan nama lengkap sesuai dokumen resmi...")
