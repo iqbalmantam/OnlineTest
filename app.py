@@ -40,7 +40,7 @@ def inject_anti_cheat_script():
         unsafe_allow_html=True
     )
 
-    # 2. JavaScript Anti-Cheat (Tanpa memanggil window.top / window.parent)
+    # 2. JavaScript Anti-Cheat Valid (Sintaks Komentar JavaScript `//`)
     anti_cheat_js = """
     <script>
     (function() {
@@ -60,7 +60,7 @@ def inject_anti_cheat_script():
         function triggerWarning() {
             var count = incrementViolations();
             if (count >= maxViolations) {
-                alert('PERINGATAN KECURANGAN!\nAnda telah keluar/berpindah dari halaman tes sebanyak ' + count + ' kali. Tes Anda dibatalkan!');
+                alert('PERINGATAN KECURANGAN!\nAnda telah keluar/berpindah dari halaman tes sebanyak ' + count + ' kali. Akses tes Anda dihentikan!');
                 sessionStorage.removeItem('exam_violations');
                 window.location.reload();
             } else {
@@ -69,7 +69,7 @@ def inject_anti_cheat_script():
             }
         }
 
-        // --- 1. DISABLE COPY, PASTE, & RIGHT CLICK ---
+        // // --- 1. DISABLE COPY, PASTE, & RIGHT CLICK ---
         document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
         ['copy', 'cut', 'paste', 'dragstart'].forEach(function(evt) {
             document.addEventListener(evt, function(e) { e.preventDefault(); });
@@ -86,12 +86,15 @@ def inject_anti_cheat_script():
             }
         });
 
-        # --- 2. DETEKSI PINDAH TAB (VISIBILITY CHANGE) ---
-        // Browser meneruskan event ini ke seluruh iframe secara otomatis
+        // // --- 2. DETEKSI PINDAH TAB (VISIBILITY CHANGE & BLUR) ---
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
                 triggerWarning();
             }
+        });
+
+        window.addEventListener('blur', function() {
+            triggerWarning();
         });
 
     })();
