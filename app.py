@@ -15,16 +15,75 @@ st.set_page_config(
 # Password Rahasia untuk Akses Panel HRD
 HRD_PASSWORD = "adminlogistik"
 
-# MASUKKAN URL GOOGLE SHEETS ANDA DI SINI (Pastikan sudah di-share sebagai Editor)
-# Contoh URL Google Form / Sheet Web App atau koneksi CSV
-# Untuk metode paling sederhana & stabil tanpa setup GCP kompleks, kita gunakan integrasi Apps Script / Form / Public Sheet
-
 # --- PASTE LINK GOOGLE SHEET (CSV Export Link) DI SINI ---
-# Cara dapet link CSV: Di Google Sheet -> File -> Share -> Publish to Web -> Pilih Entire Document & CSV -> Copy Link
-SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHrkTeAJyKiUY3G9VD10wgE2GnBR0mfu8qbaWo2iEFasprbTncr8jbA5UtpXAQo8_yd3Psr-oUnchC/pub?output=csv" # Ganti dengan URL Publish CSV Anda
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHrkTeAJyKiUY3G9VD10wgE2GnBR0mfu8qbaWo2iEFasprbTncr8jbA5UtpXAQo8_yd3Psr-oUnchC/pub?output=csv" 
 
-# --- PASTE WEB APP URL GOOGLE APPS SCRIPT DI SINI (Untuk Menerima Data dari PC Kandidat) ---
-GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIXtqqcw23Laxslcs2UoA7fJOT-0K4jgxbM5WGwKJA3FhddM5UqVdvXEWrmfmLKFgrXA/exec" # Link Web App Google Apps Script
+# --- PASTE WEB APP URL GOOGLE APPS SCRIPT DI SINI ---
+GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIXtqqcw23Laxslcs2UoA7fJOT-0K4jgxbM5WGwKJA3FhddM5UqVdvXEWrmfmLKFgrXA/exec"
+
+# ========================================================
+# FUNGSI ANTI-KECURANGAN (TAB SWITCH & DISABLE COPY-PASTE)
+# ========================================================
+def inject_anti_cheat_script():
+    anti_cheat_html = """
+    <style>
+      /* Mencegah highlight / seleksi teks soal */
+      body, html, * {
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
+      }
+    </style>
+
+    <script>
+      (function() {
+        const parentDoc = window.parent.document;
+
+        // 1. DISABLE COPY, PASTE, CUT, & RIGHT CLICK
+        parentDoc.addEventListener('contextmenu', e => e.preventDefault());
+        ['copy', 'cut', 'paste'].forEach(event => {
+          parentDoc.addEventListener(event, e => e.preventDefault());
+        });
+
+        parentDoc.addEventListener('keydown', e => {
+          const isCtrl = e.ctrlKey || e.metaKey;
+          if (
+            (isCtrl && ['c', 'v', 'x', 'a', 'u'].includes(e.key.toLowerCase())) ||
+            e.key === 'F12'
+          ) {
+            e.preventDefault();
+          }
+        });
+
+        // Terapkan penolakan seleksi teks ke window parent Streamlit
+        parentDoc.body.style.userSelect = 'none';
+        parentDoc.body.style.webkitUserSelect = 'none';
+
+        // 2. TAB SWITCH DETECTOR
+        if (!window.parent.violationCount) {
+          window.parent.violationCount = 0;
+        }
+        
+        const maxViolations = 3;
+
+        // Deteksi jika kandidat pindah tab / minimize
+        window.parent.addEventListener('visibilitychange', function() {
+          if (parentDoc.hidden) {
+            window.parent.violationCount++;
+            if (window.parent.violationCount >= maxViolations) {
+              alert('PERINGATAN SELESAI!\nAnda telah keluar dari halaman tes sebanyak ' + window.parent.violationCount + ' kali. Akses tes dihentikan.');
+              window.parent.location.reload();
+            } else {
+              const tersisa = maxViolations - window.parent.violationCount;
+              alert('PERINGATAN KECURANGAN!\nAnda terdeteksi meninggalkan halaman tes.\n\nPelanggaran: ' + window.parent.violationCount + '/' + maxViolations + '.\nTersisa ' + tersisa + ' kali kesempatan lagi!');
+            }
+          }
+        });
+      })();
+    </script>
+    """
+    components.html(anti_cheat_html, height=0, width=0)
 
 # Data Bank Soal Lengkap (13 Logika, 20 Sikap Kerja, 12 Excel)
 BANK_LOGIKA = [
@@ -172,7 +231,7 @@ elif st.session_state.page == 'kandidat_reg':
     **Ketentuan Mutlak Pelaksanaan Ujian:**
     - Total Komponen Soal: **45 Butir Instrumen Pemeringkat** (13 Logika Logistik, 20 Psikometrik Perilaku, 12 Formulasi Excel).
     - Batas Waktu Pengerjaan: **30 Menit** (Timer dimulai otomatis saat lembar soal dibuka).
-    - Kerjakan dengan teliti dan utamakan efisiensi waktu Anda.
+    - **Sistem Keamanan:** Dilarang menyalin teks (Copy-Paste) dan dilarang meninggalkan / berpindah tab browser selama tes.
     """)
     
     nama = st.text_input("Nama Lengkap Pelamar:", placeholder="Masukkan nama lengkap sesuai dokumen resmi...")
@@ -192,6 +251,7 @@ elif st.session_state.page == 'kandidat_reg':
 
 # --- 4. SOAL LOGIKA ---
 elif st.session_state.page == 'soal_logika':
+    inject_anti_cheat_script()  # 🔒 Pengunci Keamanan Tambahan
     render_timer()
     st.subheader("Bagian 1: Logika Kognitif & Analitis Operasional (13 Soal)")
     
@@ -215,6 +275,7 @@ elif st.session_state.page == 'soal_logika':
 
 # --- 5. SOAL KEPRIBADIAN ---
 elif st.session_state.page == 'soal_kepribadian':
+    inject_anti_cheat_script()  # 🔒 Pengunci Keamanan Tambahan
     render_timer()
     st.subheader("Bagian 2: Profil Kecocokan Sikap & Karakter Kerja Psikometrik (20 Soal)")
     st.caption("Tentukan sikap Anda: 1 = Sangat Tidak Setuju | 2 = Tidak Setuju | 3 = Setuju | 4 = Sangat Setuju")
@@ -239,6 +300,7 @@ elif st.session_state.page == 'soal_kepribadian':
 
 # --- 6. SOAL EXCEL ---
 elif st.session_state.page == 'soal_excel':
+    inject_anti_cheat_script()  # 🔒 Pengunci Keamanan Tambahan
     render_timer()
     st.subheader("Bagian 3: Advanced Formula & Pengolahan Data Manifes Excel (12 Soal)")
     
@@ -260,11 +322,10 @@ elif st.session_state.page == 'soal_excel':
                 st.session_state.jawaban_excel = temp_answers
                 go_to('selesai_kandidat')
 
-# --- 7. FINALISASI & KIRIM OTOMATIS ANTAR PC (MENCEGAH DOUBLE) ---
+# --- 7. FINALISASI & KIRIM OTOMATIS ---
 elif st.session_state.page == 'selesai_kandidat':
     st.subheader("Seluruh Tahapan Ujian Selesai")
     
-    # Kunci status agar pengiriman HANYA dieksekusi 1 kali
     if 'submitted' not in st.session_state:
         st.session_state.submitted = False
 
@@ -314,7 +375,7 @@ elif st.session_state.page == 'selesai_kandidat':
             "Desc Status": desc_status
         }
         
-        # 1. Kirim ke Google Sheets Apps Script (Jika URL valid)
+        # 1. Kirim ke Google Sheets Apps Script
         if GOOGLE_SCRIPT_URL and "script.google.com" in GOOGLE_SCRIPT_URL:
             try:
                 requests.post(GOOGLE_SCRIPT_URL, json=record_hasil, timeout=5)
@@ -323,8 +384,6 @@ elif st.session_state.page == 'selesai_kandidat':
         
         # 2. Simpan backup ke memori lokal
         st.session_state.database_hrd.append(record_hasil)
-        
-        # Kunci status agar tidak terkirim dua kali saat halaman di-refresh
         st.session_state.submitted = True
 
     st.success("Jawaban Anda telah berhasil terkirim dan tersimpan secara aman ke sistem HRD.")
@@ -335,14 +394,13 @@ elif st.session_state.page == 'selesai_kandidat':
         st.session_state.jawaban_logika = {}
         st.session_state.jawaban_kepribadian = {}
         st.session_state.jawaban_excel = {}
-        st.session_state.submitted = False  # Reset flag saat keluar
+        st.session_state.submitted = False
         go_to('menu')
 
-# --- 8. PANEL RAHASIA HRD (TERHUBUNG MULTI-PC VIA GOOGLE SHEET) ---
+# --- 8. PANEL RAHASIA HRD ---
 elif st.session_state.page == 'hrd_panel':
     st.subheader("Panel Skoring HRD - Supply Chain Fitment Index")
     
-    # Mencoba membaca data terpusat dari Google Sheet (CSV)
     data_terpusat = []
     if SHEET_CSV_URL != "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ.../pub?output=csv":
         try:
