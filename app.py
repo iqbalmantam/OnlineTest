@@ -28,69 +28,68 @@ def inject_anti_cheat_script():
     anti_cheat_html = """
     <script>
       (function() {
-        // Mengakses Window Utama (Top Frame) Streamlit
-        const topWin = window.top || window.parent || window;
-        const topDoc = topWin.document;
+        const parentDoc = window.parent.document;
+        const parentWin = window.parent;
 
-        // 1. INJECT STYLESHEET UNTUK DISABLE TEXT SELECTION
-        if (!topDoc.getElementById('anti-select-style')) {
-          const style = topDoc.createElement('style');
-          style.id = 'anti-select-style';
-          style.innerHTML = `
-            * {
+        // 1. INJECT STYLESHEET LANGSUNG KE PARENT DOCUMENT (MENCEGAH HIGHLIGHT TEKS SOAL)
+        if (!parentDoc.getElementById('anti-cheat-styles')) {
+          const styleEl = parentDoc.createElement('style');
+          styleEl.id = 'anti-cheat-styles';
+          styleEl.innerHTML = `
+            body, .stApp, p, span, div, label {
               -webkit-user-select: none !important;
               -moz-user-select: none !important;
               -ms-user-select: none !important;
               user-select: none !important;
             }
           `;
-          topDoc.head.appendChild(style);
+          parentDoc.head.appendChild(styleEl);
         }
 
-        // 2. DISABLE RIGHT CLICK, COPY, PASTE, CUT
-        const blockEvents = ['contextmenu', 'copy', 'cut', 'paste', 'dragstart'];
-        blockEvents.forEach(evt => {
-          topDoc.addEventListener(evt, e => e.preventDefault(), true);
-        });
+        // 2. DISABLE CLICK KANAN & COPY-PASTE DI INDUK WINDOW
+        if (!parentWin.__antiCheatEventsBound) {
+          parentWin.__antiCheatEventsBound = true;
 
-        // 3. DISABLE KEYBOARD SHORTCUTS (Ctrl+C, Ctrl+V, F12, dll)
-        topDoc.addEventListener('keydown', e => {
-          const isCtrl = e.ctrlKey || e.metaKey;
-          const key = e.key.toLowerCase();
-          if (
-            (isCtrl && ['c', 'v', 'x', 'a', 'u', 's', 'p'].includes(key)) ||
-            e.key === 'F12' ||
-            (isCtrl && e.shiftKey && ['i', 'j', 'c'].includes(key))
-          ) {
-            e.preventDefault();
-            e.stopPropagation();
-          }
-        }, true);
+          ['contextmenu', 'copy', 'cut', 'paste', 'dragstart'].forEach(evt => {
+            parentDoc.addEventListener(evt, e => {
+              e.preventDefault();
+              e.stopPropagation();
+              return false;
+            }, true);
+          });
 
-        // 4. TAB SWITCH DETECTOR
-        if (typeof topWin.violationCount === 'undefined') {
-          topWin.violationCount = 0;
-        }
-
-        const maxViolations = 3;
-
-        function handleVisibilityChange() {
-          if (topDoc.hidden) {
-            topWin.violationCount++;
-            if (topWin.violationCount >= maxViolations) {
-              alert('PERINGATAN SELESAI!\nAnda telah keluar dari halaman tes sebanyak ' + topWin.violationCount + ' kali. Akses tes dihentikan.');
-              topWin.location.reload();
-            } else {
-              const tersisa = maxViolations - topWin.violationCount;
-              alert('PERINGATAN KECURANGAN!\nAnda terdeteksi meninggalkan halaman tes.\n\nPelanggaran: ' + topWin.violationCount + '/' + maxViolations + '.\nTersisa ' + tersisa + ' kali kesempatan lagi!');
+          // DISABLE SHORTCUT KEYBOARD (Ctrl+C, Ctrl+V, F12, dll)
+          parentDoc.addEventListener('keydown', e => {
+            const isCtrl = e.ctrlKey || e.metaKey;
+            const key = e.key.toLowerCase();
+            if (
+              (isCtrl && ['c', 'v', 'x', 'a', 'u', 's', 'p'].includes(key)) ||
+              e.key === 'F12' ||
+              (isCtrl && e.shiftKey && ['i', 'j', 'c'].includes(key))
+            ) {
+              e.preventDefault();
+              e.stopPropagation();
+              return false;
             }
-          }
+          }, true);
+
+          // 3. TAB SWITCH DETECTOR
+          parentWin.violationCount = 0;
+          const maxViolations = 3;
+
+          parentDoc.addEventListener('visibilitychange', function() {
+            if (parentDoc.hidden) {
+              parentWin.violationCount++;
+              if (parentWin.violationCount >= maxViolations) {
+                alert('PERINGATAN KECURANGAN!\nAnda telah keluar dari halaman tes sebanyak ' + parentWin.violationCount + ' kali. Tes dihentikan.');
+                parentWin.location.reload();
+              } else {
+                const tersisa = maxViolations - parentWin.violationCount;
+                alert('PERINGATAN KECURANGAN!\nAnda terdeteksi meninggalkan halaman tes.\n\nPelanggaran: ' + parentWin.violationCount + '/' + maxViolations + '.\nTersisa ' + tersisa + ' kali kesempatan lagi!');
+              }
+            }
+          }, true);
         }
-
-        // Hapus listener lama jika ada (mencegah pemicuan ganda)
-        topDoc.removeEventListener('visibilitychange', handleVisibilityChange);
-        topDoc.addEventListener('visibilitychange', handleVisibilityChange);
-
       })();
     </script>
     """
