@@ -22,10 +22,10 @@ SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHrkTeAJyKiUY3
 GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIXtqqcw23Laxslcs2UoA7fJOT-0K4jgxbM5WGwKJA3FhddM5UqVdvXEWrmfmLKFgrXA/exec"
 
 # ========================================================
-# FUNGSI ANTI-KECURANGAN (TEGURAN PINDAH TAB & DISABLE COPY)
+# FUNGSI ANTI-KECURANGAN (DISABLE COPY-PASTE & RIGHT CLICK)
 # ========================================================
 def inject_anti_cheat_script():
-    # 1. CSS Mencegah Seleksi Teks
+    # 1. CSS Mencegah Seleksi / Highlight Teks
     st.markdown(
         """
         <style>
@@ -40,31 +40,19 @@ def inject_anti_cheat_script():
         unsafe_allow_html=True
     )
 
-    # 2. JavaScript Monitoring Tab Switch (Teguran Saat Kembali)
+    # 2. JavaScript Disable Copy, Paste, & Klik Kanan
     anti_cheat_js = """
-    <div style="background-color: #fff3cd; color: #856404; padding: 8px; border-radius: 5px; text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 10px;">
-        ⚠️ SISTEM KEAMANAN TERPASANG: Maksimal 3 kali toleransi meninggalkan halaman tes!
-    </div>
-
     <script>
     (function() {
-        var maxViolations = 3;
-
-        // Ambil data dari localStorage agar tidak hilang saat Streamlit re-render
-        function getViolations() {
-            return parseInt(localStorage.getItem('exam_violations_count') || '0', 10);
-        }
-
-        function setViolations(val) {
-            localStorage.setItem('exam_violations_count', val.toString());
-        }
-
-        // --- 1. MATIKAN COPY, PASTE, & KLIK KANAN ---
+        // Matikan Klik Kanan
         document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+        // Matikan Event Copy, Cut, Paste, Drag
         ['copy', 'cut', 'paste', 'dragstart'].forEach(function(evt) {
             document.addEventListener(evt, function(e) { e.preventDefault(); });
         });
 
+        // Matikan Shortcut Keyboard (Ctrl+C, Ctrl+V, F12, dll)
         document.addEventListener('keydown', function(e) {
             var isCtrl = e.ctrlKey || e.metaKey;
             var k = e.key.toLowerCase();
@@ -72,36 +60,10 @@ def inject_anti_cheat_script():
                 e.preventDefault();
             }
         });
-
-        // --- 2. DETEKSI PINDAH TAB (DENGAN TEGURAN SAAT KEMBALI) ---
-        var wasHidden = false;
-
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden) {
-                // Tandai bahwa kandidat sempat meninggalkan tab
-                wasHidden = true;
-            } else if (wasHidden) {
-                // Kandidat KEMBALI ke tab tes -> Keluarkan teguran
-                wasHidden = false;
-                
-                var current = getViolations() + 1;
-                setViolations(current);
-
-                if (current >= maxViolations) {
-                    alert('🚨 PERINGATAN KECURANGAN TERAKHIR (3/3)!\n\nAnda telah meninggalkan halaman tes sebanyak 3 kali. Tes Anda dibatalkan/di-submit otomatis.');
-                    localStorage.removeItem('exam_violations_count');
-                    window.location.reload();
-                } else {
-                    var sisa = maxViolations - current;
-                    alert('⚠️ TEGURAN KECURANGAN (' + current + '/' + maxViolations + ')\n\nAnda terdeteksi baru saja meninggalkan halaman tes!\nTersisa ' + sisa + ' kali kesempatan lagi sebelum tes dibatalkan otomatis.');
-                }
-            }
-        });
-
     })();
     </script>
     """
-    components.html(anti_cheat_js, height=45)
+    components.html(anti_cheat_js, height=0, width=0)
 
 # Data Bank Soal Lengkap (13 Logika, 20 Sikap Kerja, 12 Excel)
 BANK_LOGIKA = [
@@ -156,6 +118,29 @@ BANK_EXCEL = [
     {"s": "10. Dalam pembuatan dasbor metrik logistik harian, pintasan keyboard (shortcut) tercepat di Excel untuk membuat grafik chart otomatis dari tabel yang terblok adalah...", "o": ["Alt + F1", "Ctrl + P", "Shift + F5"], "k": "A"},
     {"s": "11. Fungsi utama dari fitur 'Data Validation' dengan kriteria 'List' pada tabel input manifes pergudangan adalah...", "o": ["Menghitung total baris nama sopir secara otomatis", "Membatasi input sel hanya boleh diisi oleh opsi teks tertentu yang sudah ditentukan (mencegah salah ketik)", "Mengurutkan data abjad kota asal ke kota tujuan"], "k": "B"},
     {"s": "12. Formula di sel H10 adalah =COUNTA(D2:D50). Jika di dalam rentang tersebut terdapat 5 sel kosong, 5 sel berisi teks eror, dan 40 sel berisi teks normal. Berapakah angka hasil keluaran rumus tersebut?", "o": ["40", "45", "50"], "k": "B"}
+]
+
+BANK_KEPRIBADIAN = [
+    {"id": "STRES", "s": "1. Ketika terjadi lonjakan paket (peak season) mendadak yang mengakibatkan antrean truk mengular di luar depo gudang, saya mendapati diri saya mudah cemas dan emosional menghadapi desakan tim lapangan."},
+    {"id": "TELITI", "s": "2. Menghabiskan waktu 5 menit ekstra untuk memastikan keakuratan data nomor resi kargo satu per satu jauh lebih penting bagi saya daripada sekadar mengejar kecepatan laporan cepat."},
+    {"id": "PATUH", "s": "3. Menurut pandangan saya, mengabaikan prosedur operasional standar (SOP) keselamatan kerja dapat dimaklumi apabila target waktu pemuatan (loading window) kapal/pesawat sudah sangat kritis."},
+    {"id": "STRES", "s": "4. Saya mampu mengisolasi tekanan psikologis dari komplain kemarahan pelanggan eksternal/sopir angkutan tanpa mengganggu fokus pengerjaan entri data administrasi berikutnya."},
+    {"id": "TELITI", "s": "5. Saya cenderung mengabaikan kesalahan kecil pada digit angka di dokumen manifes perjalanan, selama total jumlah tonase akhir di jembatan timbang terlihat cocok."},
+    {"id": "PATUH", "s": "6. Saya konsisten menjalankan inspeksi checklist kelayakan armada (ramp check) secara detail meskipun pengawasan dari Head of Fleet atau Supervisor sedang longgar."},
+    {"id": "STRES", "s": "7. Rencana distribusi alokasi truk yang mendadak berubah di tengah malam akibat kecelakaan lalu lintas atau penutupan jalan tol membuat saya sulit berkonsentrasi menentukan keputusan darurat."},
+    {"id": "TELITI", "s": "8. Rekan kerja atau atasan seringkali memuji hasil pelaporan kerja saya karena tingkat presisi penempatan koordinat lokasi rak gudang yang sangat akurat."},
+    {"id": "PATUH", "s": "9. Memodifikasi data kerusakan aset logistik di sistem agar performa operasional divisi terlihat tetap aman di mata manajemen perusahaan bagi saya adalah hal yang wajar dilakukan."},
+    {"id": "PATUH", "s": "10. Saya bersedia melaporkan indikasi fraud, pungutan liar, atau kecurangan pencatatan BBM yang dilakukan oleh rekan kerja satu divisi demi integritas keamanan depo."},
+    {"id": "TELITI", "s": "11. Saya selalu melakukan konfirmasi ulang secara fisik terhadap jumlah barang di atas palet sebelum menandatangani berita acara serah terima barang."},
+    {"id": "STRES", "s": "12. Perubahan instruksi mendadak dari manajemen terkait prioritas pengiriman barang tidak mengganggu ketenangan dan fokus kerja saya."},
+    {"id": "PATUH", "s": "13. Saya menolak untuk meloloskan truk yang over-dimension dan over-load (ODOL) meskipun mendapat desakan dari pihak vendor angkutan."},
+    {"id": "TELITI", "s": "14. Bagi saya, kecocokan antara data fisik di gudang dengan catatan di sistem WMS (Warehouse Management System) adalah harga mati yang tidak boleh ada selisih."},
+    {"id": "STRES", "s": "15. Saat terjadi perselisihan atau adu argumen dengan tim muat (co-loader) di lapangan, saya tetap dapat mengendalikan emosi dengan tenang."},
+    {"id": "PATUH", "s": "16. Menggunakan Alat Pelindung Diri (APD) lengkap di area gudang/depo adalah kewajiban yang selalu saya patuhi tanpa perlu ditegur atasan."},
+    {"id": "TELITI", "s": "17. Saya terbiasa memeriksa ulang detail kode barang (SKU) yang mirip sebelum proses paking dan penempelan label resi."},
+    {"id": "STRES", "s": "18. Beban kerja yang menumpuk menjelang akhir jam operasional gudang tidak membuat saya tergesa-gesa hingga mengurangi kualitas kerja."},
+    {"id": "PATUH", "s": "19. Apabila saya menemukan celah sistem yang bisa dimanfaatkan untuk mempercepat pekerjaan tetapi melanggar prosedur resmi, saya tetap memilih mengikuti aturan."},
+    {"id": "TELITI", "s": "20. Saya mencatat setiap riwayat perawatan rutin armada logistik secara rapi dan terorganisasi agar tidak ada jadwal pemeriksaan yang terlewat."}
 ]
 
 # Inisialisasi Database Lokal Backup
@@ -249,7 +234,7 @@ elif st.session_state.page == 'kandidat_reg':
     **Ketentuan Mutlak Pelaksanaan Ujian:**
     - Total Komponen Soal: **45 Butir Instrumen Pemeringkat** (13 Logika Logistik, 20 Psikometrik Perilaku, 12 Formulasi Excel).
     - Batas Waktu Pengerjaan: **30 Menit** (Timer dimulai otomatis saat lembar soal dibuka).
-    - **Sistem Keamanan:** Dilarang menyalin teks (Copy-Paste) dan dilarang meninggalkan / berpindah tab browser selama tes.
+    - **Sistem Keamanan:** Dilarang menyalin teks (Copy-Paste) dan dilarang menggunakan fitur klik kanan selama tes.
     """)
     
     nama = st.text_input("Nama Lengkap Pelamar:", placeholder="Masukkan nama lengkap sesuai dokumen resmi...")
@@ -269,7 +254,7 @@ elif st.session_state.page == 'kandidat_reg':
 
 # --- 4. SOAL LOGIKA ---
 elif st.session_state.page == 'soal_logika':
-    inject_anti_cheat_script()  # 🔒 Pengunci Keamanan Tambahan
+    inject_anti_cheat_script()
     render_timer()
     st.subheader("Bagian 1: Logika Kognitif & Analitis Operasional (13 Soal)")
     
@@ -293,7 +278,7 @@ elif st.session_state.page == 'soal_logika':
 
 # --- 5. SOAL KEPRIBADIAN ---
 elif st.session_state.page == 'soal_kepribadian':
-    inject_anti_cheat_script()  # 🔒 Pengunci Keamanan Tambahan
+    inject_anti_cheat_script()
     render_timer()
     st.subheader("Bagian 2: Profil Kecocokan Sikap & Karakter Kerja Psikometrik (20 Soal)")
     st.caption("Tentukan sikap Anda: 1 = Sangat Tidak Setuju | 2 = Tidak Setuju | 3 = Setuju | 4 = Sangat Setuju")
@@ -318,7 +303,7 @@ elif st.session_state.page == 'soal_kepribadian':
 
 # --- 6. SOAL EXCEL ---
 elif st.session_state.page == 'soal_excel':
-    inject_anti_cheat_script()  # 🔒 Pengunci Keamanan Tambahan
+    inject_anti_cheat_script()
     render_timer()
     st.subheader("Bagian 3: Advanced Formula & Pengolahan Data Manifes Excel (12 Soal)")
     
