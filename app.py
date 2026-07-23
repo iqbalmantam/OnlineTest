@@ -26,60 +26,71 @@ GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIXtqqcw23Laxslcs2
 # ========================================================
 def inject_anti_cheat_script():
     anti_cheat_html = """
-    <style>
-      /* Mencegah highlight / seleksi teks soal */
-      body, html, * {
-        -webkit-user-select: none !important;
-        -moz-user-select: none !important;
-        -ms-user-select: none !important;
-        user-select: none !important;
-      }
-    </style>
-
     <script>
       (function() {
-        const parentDoc = window.parent.document;
+        // Mengakses Window Utama (Top Frame) Streamlit
+        const topWin = window.top || window.parent || window;
+        const topDoc = topWin.document;
 
-        // 1. DISABLE COPY, PASTE, CUT, & RIGHT CLICK
-        parentDoc.addEventListener('contextmenu', e => e.preventDefault());
-        ['copy', 'cut', 'paste'].forEach(event => {
-          parentDoc.addEventListener(event, e => e.preventDefault());
+        // 1. INJECT STYLESHEET UNTUK DISABLE TEXT SELECTION
+        if (!topDoc.getElementById('anti-select-style')) {
+          const style = topDoc.createElement('style');
+          style.id = 'anti-select-style';
+          style.innerHTML = `
+            * {
+              -webkit-user-select: none !important;
+              -moz-user-select: none !important;
+              -ms-user-select: none !important;
+              user-select: none !important;
+            }
+          `;
+          topDoc.head.appendChild(style);
+        }
+
+        // 2. DISABLE RIGHT CLICK, COPY, PASTE, CUT
+        const blockEvents = ['contextmenu', 'copy', 'cut', 'paste', 'dragstart'];
+        blockEvents.forEach(evt => {
+          topDoc.addEventListener(evt, e => e.preventDefault(), true);
         });
 
-        parentDoc.addEventListener('keydown', e => {
+        // 3. DISABLE KEYBOARD SHORTCUTS (Ctrl+C, Ctrl+V, F12, dll)
+        topDoc.addEventListener('keydown', e => {
           const isCtrl = e.ctrlKey || e.metaKey;
+          const key = e.key.toLowerCase();
           if (
-            (isCtrl && ['c', 'v', 'x', 'a', 'u'].includes(e.key.toLowerCase())) ||
-            e.key === 'F12'
+            (isCtrl && ['c', 'v', 'x', 'a', 'u', 's', 'p'].includes(key)) ||
+            e.key === 'F12' ||
+            (isCtrl && e.shiftKey && ['i', 'j', 'c'].includes(key))
           ) {
             e.preventDefault();
+            e.stopPropagation();
           }
-        });
+        }, true);
 
-        // Terapkan penolakan seleksi teks ke window parent Streamlit
-        parentDoc.body.style.userSelect = 'none';
-        parentDoc.body.style.webkitUserSelect = 'none';
-
-        // 2. TAB SWITCH DETECTOR
-        if (!window.parent.violationCount) {
-          window.parent.violationCount = 0;
+        // 4. TAB SWITCH DETECTOR
+        if (typeof topWin.violationCount === 'undefined') {
+          topWin.violationCount = 0;
         }
-        
+
         const maxViolations = 3;
 
-        // Deteksi jika kandidat pindah tab / minimize
-        window.parent.addEventListener('visibilitychange', function() {
-          if (parentDoc.hidden) {
-            window.parent.violationCount++;
-            if (window.parent.violationCount >= maxViolations) {
-              alert('PERINGATAN SELESAI!\nAnda telah keluar dari halaman tes sebanyak ' + window.parent.violationCount + ' kali. Akses tes dihentikan.');
-              window.parent.location.reload();
+        function handleVisibilityChange() {
+          if (topDoc.hidden) {
+            topWin.violationCount++;
+            if (topWin.violationCount >= maxViolations) {
+              alert('PERINGATAN SELESAI!\nAnda telah keluar dari halaman tes sebanyak ' + topWin.violationCount + ' kali. Akses tes dihentikan.');
+              topWin.location.reload();
             } else {
-              const tersisa = maxViolations - window.parent.violationCount;
-              alert('PERINGATAN KECURANGAN!\nAnda terdeteksi meninggalkan halaman tes.\n\nPelanggaran: ' + window.parent.violationCount + '/' + maxViolations + '.\nTersisa ' + tersisa + ' kali kesempatan lagi!');
+              const tersisa = maxViolations - topWin.violationCount;
+              alert('PERINGATAN KECURANGAN!\nAnda terdeteksi meninggalkan halaman tes.\n\nPelanggaran: ' + topWin.violationCount + '/' + maxViolations + '.\nTersisa ' + tersisa + ' kali kesempatan lagi!');
             }
           }
-        });
+        }
+
+        // Hapus listener lama jika ada (mencegah pemicuan ganda)
+        topDoc.removeEventListener('visibilitychange', handleVisibilityChange);
+        topDoc.addEventListener('visibilitychange', handleVisibilityChange);
+
       })();
     </script>
     """
