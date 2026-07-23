@@ -22,10 +22,10 @@ SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQHrkTeAJyKiUY3
 GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyIXtqqcw23Laxslcs2UoA7fJOT-0K4jgxbM5WGwKJA3FhddM5UqVdvXEWrmfmLKFgrXA/exec"
 
 # ========================================================
-# FUNGSI ANTI-KECURANGAN (TAB SWITCH & DISABLE COPY-PASTE)
+# FUNGSI ANTI-KECURANGAN (TEGURAN PINDAH TAB & DISABLE COPY)
 # ========================================================
 def inject_anti_cheat_script():
-    # 1. CSS Injection untuk mematikan seleksi teks pada halaman Streamlit
+    # 1. CSS Mencegah Seleksi Teks
     st.markdown(
         """
         <style>
@@ -40,36 +40,26 @@ def inject_anti_cheat_script():
         unsafe_allow_html=True
     )
 
-    # 2. JavaScript Anti-Cheat Valid (Sintaks Komentar JavaScript `//`)
+    # 2. JavaScript Monitoring Tab Switch (Teguran Saat Kembali)
     anti_cheat_js = """
+    <div style="background-color: #fff3cd; color: #856404; padding: 8px; border-radius: 5px; text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 10px;">
+        ⚠️ SISTEM KEAMANAN TERPASANG: Maksimal 3 kali toleransi meninggalkan halaman tes!
+    </div>
+
     <script>
     (function() {
         var maxViolations = 3;
 
-        // Ambil hitungan pelanggaran dari sessionStorage (persist meski Streamlit rerun)
+        // Ambil data dari localStorage agar tidak hilang saat Streamlit re-render
         function getViolations() {
-            return parseInt(sessionStorage.getItem('exam_violations') || '0', 10);
+            return parseInt(localStorage.getItem('exam_violations_count') || '0', 10);
         }
 
-        function incrementViolations() {
-            var current = getViolations() + 1;
-            sessionStorage.setItem('exam_violations', current.toString());
-            return current;
+        function setViolations(val) {
+            localStorage.setItem('exam_violations_count', val.toString());
         }
 
-        function triggerWarning() {
-            var count = incrementViolations();
-            if (count >= maxViolations) {
-                alert('PERINGATAN KECURANGAN!\nAnda telah keluar/berpindah dari halaman tes sebanyak ' + count + ' kali. Akses tes Anda dihentikan!');
-                sessionStorage.removeItem('exam_violations');
-                window.location.reload();
-            } else {
-                var tersisa = maxViolations - count;
-                alert('PERINGATAN KECURANGAN!\nAnda terdeteksi meninggalkan halaman tes (pindah tab / minimize).\n\nPelanggaran: ' + count + '/' + maxViolations + '.\nTersisa ' + tersisa + ' kali kesempatan lagi!');
-            }
-        }
-
-        // // --- 1. DISABLE COPY, PASTE, & RIGHT CLICK ---
+        // --- 1. MATIKAN COPY, PASTE, & KLIK KANAN ---
         document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
         ['copy', 'cut', 'paste', 'dragstart'].forEach(function(evt) {
             document.addEventListener(evt, function(e) { e.preventDefault(); });
@@ -78,29 +68,40 @@ def inject_anti_cheat_script():
         document.addEventListener('keydown', function(e) {
             var isCtrl = e.ctrlKey || e.metaKey;
             var k = e.key.toLowerCase();
-            if (
-                (isCtrl && ['c', 'v', 'x', 'a', 'u', 's', 'p'].indexOf(k) !== -1) ||
-                e.key === 'F12'
-            ) {
+            if ((isCtrl && ['c', 'v', 'x', 'a', 'u', 's', 'p'].indexOf(k) !== -1) || e.key === 'F12') {
                 e.preventDefault();
             }
         });
 
-        // // --- 2. DETEKSI PINDAH TAB (VISIBILITY CHANGE & BLUR) ---
+        // --- 2. DETEKSI PINDAH TAB (DENGAN TEGURAN SAAT KEMBALI) ---
+        var wasHidden = false;
+
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
-                triggerWarning();
-            }
-        });
+                // Tandai bahwa kandidat sempat meninggalkan tab
+                wasHidden = true;
+            } else if (wasHidden) {
+                // Kandidat KEMBALI ke tab tes -> Keluarkan teguran
+                wasHidden = false;
+                
+                var current = getViolations() + 1;
+                setViolations(current);
 
-        window.addEventListener('blur', function() {
-            triggerWarning();
+                if (current >= maxViolations) {
+                    alert('🚨 PERINGATAN KECURANGAN TERAKHIR (3/3)!\n\nAnda telah meninggalkan halaman tes sebanyak 3 kali. Tes Anda dibatalkan/di-submit otomatis.');
+                    localStorage.removeItem('exam_violations_count');
+                    window.location.reload();
+                } else {
+                    var sisa = maxViolations - current;
+                    alert('⚠️ TEGURAN KECURANGAN (' + current + '/' + maxViolations + ')\n\nAnda terdeteksi baru saja meninggalkan halaman tes!\nTersisa ' + sisa + ' kali kesempatan lagi sebelum tes dibatalkan otomatis.');
+                }
+            }
         });
 
     })();
     </script>
     """
-    components.html(anti_cheat_js, height=0, width=0)
+    components.html(anti_cheat_js, height=45)
 
 # Data Bank Soal Lengkap (13 Logika, 20 Sikap Kerja, 12 Excel)
 BANK_LOGIKA = [
