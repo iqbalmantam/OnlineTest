@@ -29,7 +29,6 @@ def inject_anti_cheat_script():
     st.markdown(
         """
         <style>
-        /* Matikan seleksi teks di seluruh elemen Streamlit */
         html, body, .stApp, .stApp * {
             -webkit-user-select: none !important;
             -moz-user-select: none !important;
@@ -41,36 +40,37 @@ def inject_anti_cheat_script():
         unsafe_allow_html=True
     )
 
-    # 2. JavaScript Injection melalui iframe runner untuk memblokir event di window utama
+    # 2. JavaScript Injection khusus Top Window Event Listener
     anti_cheat_js = """
     <script>
     (function() {
         try {
-            var mainDoc = window.parent.document;
-            var mainWin = window.parent;
+            // Targetkan Window paling luar (Top Window Browser)
+            var topWin = window.top || window.parent || window;
+            var topDoc = topWin.document;
 
-            // Mencegah pemicuan ganda saat re-render
-            if (!mainWin.__antiCheatActive) {
-                mainWin.__antiCheatActive = true;
-                mainWin.violationCount = 0;
+            // Mencegah duplicate binding saat Streamlit re-render
+            if (!topWin.__antiCheatActive) {
+                topWin.__antiCheatActive = true;
+                topWin.violationCount = 0;
                 var maxViolations = 3;
 
                 // Disable Right Click
-                mainDoc.addEventListener('contextmenu', function(e) {
+                topDoc.addEventListener('contextmenu', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                 }, true);
 
                 // Disable Copy, Cut, Paste, Drag
                 ['copy', 'cut', 'paste', 'dragstart'].forEach(function(evt) {
-                    mainDoc.addEventListener(evt, function(e) {
+                    topDoc.addEventListener(evt, function(e) {
                         e.preventDefault();
                         e.stopPropagation();
                     }, true);
                 });
 
-                // Disable Keyboard Shortcuts (Ctrl+C, Ctrl+V, F12, dll)
-                mainDoc.addEventListener('keydown', function(e) {
+                // Disable Keyboard Shortcuts
+                topDoc.addEventListener('keydown', function(e) {
                     var isCtrl = e.ctrlKey || e.metaKey;
                     var k = e.key.toLowerCase();
                     if (
@@ -83,22 +83,32 @@ def inject_anti_cheat_script():
                     }
                 }, true);
 
-                // Tab Switch / Visibility Change Detector
-                mainDoc.addEventListener('visibilitychange', function() {
-                    if (mainDoc.hidden) {
-                        mainWin.violationCount++;
-                        if (mainWin.violationCount >= maxViolations) {
-                            alert('PERINGATAN KECURANGAN!\nAnda telah keluar dari halaman tes sebanyak ' + mainWin.violationCount + ' kali. Akses tes dihentikan/di-refresh.');
-                            mainWin.location.reload();
-                        } else {
-                            var tersisa = maxViolations - mainWin.violationCount;
-                            alert('PERINGATAN KECURANGAN!\nAnda terdeteksi meninggalkan halaman tes.\n\nPelanggaran: ' + mainWin.violationCount + '/' + maxViolations + '.\nTersisa ' + tersisa + ' kali kesempatan lagi!');
-                        }
+                // Fungsi Peringatan Kecurangan
+                function triggerWarning() {
+                    topWin.violationCount++;
+                    if (topWin.violationCount >= maxViolations) {
+                        alert('PERINGATAN KECURANGAN!\nAnda telah keluar/berpindah dari halaman tes sebanyak ' + topWin.violationCount + ' kali. Akses tes dihentikan.');
+                        topWin.location.reload();
+                    } else {
+                        var tersisa = maxViolations - topWin.violationCount;
+                        alert('PERINGATAN KECURANGAN!\nAnda terdeteksi meninggalkan halaman tes (pindah tab / minimize).\n\nPelanggaran: ' + topWin.violationCount + '/' + maxViolations + '.\nTersisa ' + tersisa + ' kali kesempatan lagi!');
                     }
+                }
+
+                // Deteksi 1: Visibility Change pada Top Document
+                topDoc.addEventListener('visibilitychange', function() {
+                    if (topDoc.hidden) {
+                        triggerWarning();
+                    }
+                }, true);
+
+                // Deteksi 2: Window Blur (saat klik/fokus ke aplikasi/jendela lain)
+                topWin.addEventListener('blur', function() {
+                    triggerWarning();
                 }, true);
             }
         } catch(e) {
-            console.log('Anti-cheat script initialization error:', e);
+            console.log('Anti-cheat script error:', e);
         }
     })();
     </script>
